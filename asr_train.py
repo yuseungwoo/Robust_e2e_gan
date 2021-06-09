@@ -17,7 +17,7 @@ from options.train_options import TrainOptions
 from model.e2e_model import E2E
 from model.feat_model import FbankModel
 from data.data_loader import SequentialDataset, SequentialDataLoader
-from data.data_sampler import BucketingSampler, DistributedBucketingSampler
+from data.data_loader import BucketingSampler
 from utils.visualizer import Visualizer 
 from utils import utils 
     
@@ -29,7 +29,8 @@ torch.cuda.manual_seed(manualSeed)
 def main():
     
     opt = TrainOptions().parse()    
-    device = torch.device("cuda:{}".format(opt.gpu_ids[0]) if len(opt.gpu_ids) > 0 and torch.cuda.is_available() else "cpu")
+    #device = torch.device("cuda:{}".format(opt.gpu_ids[0]) if len(opt.gpu_ids) > 0 and torch.cuda.is_available() else "cpu")
+    device= "cpu"
      
     visualizer = Visualizer(opt)  
     logging = visualizer.get_logger()
@@ -53,7 +54,7 @@ def main():
     
     # Setup a model
     asr_model = E2E(opt)
-    ##fbank_model = FbankModel(opt)
+    #fbank_model = FbankModel(opt)
     lr = opt.lr
     eps = opt.eps
     iters = opt.iters
@@ -77,12 +78,12 @@ def main():
             visualizer.set_plot_report(loss_report, 'loss.png')
             
             asr_model = E2E.load_model(model_path, 'asr_state_dict') 
-            ##fbank_model = FbankModel.load_model(model_path, 'fbank_state_dict') 
+            #fbank_model = FbankModel.load_model(model_path, 'fbank_state_dict') 
             logging.info('Loading model {} and iters {}'.format(model_path, iters))
         else:
             print("no checkpoint found at {}".format(model_path))                
-    asr_model.cuda()
-    ##fbank_model.cuda()
+    asr_model.cpu()
+    #fbank_model.cuda()
     print(asr_model)
   
     # Setup an optimizer
@@ -95,7 +96,8 @@ def main():
            
     asr_model.train()
     #fbank_model.train()    
-    sample_rampup = utils.ScheSampleRampup(opt.sche_samp_start_iter, opt.sche_samp_final_iter, opt.sche_samp_final_rate)  
+    #sample_rampup = utils.ScheSampleRampup(opt.sche_samp_start_iter, opt.sche_samp_final_iter, opt.sche_samp_final_rate)
+    sample_rampup = utils.ScheSampleRampup(25, 30, 0.000001)   
     sche_samp_rate = sample_rampup.update(iters)
     
     '''fbank_cmvn_file = os.path.join(opt.exp_path, 'fbank_cmvn.npy')
@@ -110,7 +112,7 @@ def main():
                 print('save fbank_cmvn to {}'.format(fbank_cmvn_file))
                 break
     fbank_cmvn = torch.FloatTensor(fbank_cmvn)'''
-                     
+    
     for epoch in range(start_epoch, opt.epochs):
         if epoch > opt.shuffle_epoch:
             print("Shuffling batches for the following epochs")
@@ -118,8 +120,9 @@ def main():
         for i, (data) in enumerate(train_loader, start=(iters*opt.batch_size)%len(train_dataset)):
             #utt_ids, spk_ids, inputs, log_inputs, targets, input_sizes, target_sizes = data
             #fbank_features = fbank_model(inputs, fbank_cmvn)
-            utt_ids, spk_ids, fbank_features, targets, input_sizes, target_sizes = data
-            loss_ctc, loss_att, acc, context = asr_model(fbank_features, targets, input_sizes, target_sizes, sche_samp_rate) 
+            utt_ids, spk_ids, inputs, log_inputs, targets, input_sizes, target_sizes = data
+            #utt_ids, spk_ids, fbank_features, targets, input_sizes, target_sizes = data
+            loss_ctc, loss_att, acc, context = asr_model(inputs, targets, input_sizes, target_sizes, sche_samp_rate) 
             loss = opt.mtlalpha * loss_ctc + (1 - opt.mtlalpha) * loss_att
             optimizer.zero_grad()  # Clear the parameter gradients
             loss.backward()          
@@ -154,8 +157,8 @@ def main():
                 for i, (data) in tqdm(enumerate(val_loader, start=0)):
                     #utt_ids, spk_ids, inputs, log_inputs, targets, input_sizes, target_sizes = data
                     #fbank_features = fbank_model(inputs, fbank_cmvn)
-                    utt_ids, spk_ids, fbank_features, targets, input_sizes, target_sizes = data
-                    loss_ctc, loss_att, acc, context = asr_model(fbank_features, targets, input_sizes, target_sizes, 0.0) 
+                    utt_ids, spk_ids, inputs, log_inputs, targets, input_sizes, target_sizes = data
+                    loss_ctc, loss_att, acc, context = asr_model(inputs, targets, input_sizes, target_sizes, 0.0) 
                     loss = opt.mtlalpha * loss_ctc + (1 - opt.mtlalpha) * loss_att                            
                     errors = {'val/loss': loss.item(), 'val/loss_ctc': loss_ctc.item(), 
                               'val/acc': acc, 'val/loss_att': loss_att.item()}
@@ -163,7 +166,7 @@ def main():
                     
                     if opt.num_save_attention > 0 and opt.mtlalpha != 1.0:
                         if num_saved_attention < opt.num_save_attention:
-                            att_ws = asr_model.calculate_all_attentions(fbank_features, targets, input_sizes, target_sizes)                            
+                            att_ws = asr_model.calculate_all_attentions(inputs, targets, input_sizes, target_sizes)                            
                             for x in range(len(utt_ids)):
                                 att_w = att_ws[x]
                                 utt_id = utt_ids[x]
@@ -192,7 +195,7 @@ def main():
                         filename='model.acc.best'                    
                     best_acc = max(best_acc, val_acc)
                     logging.info('best_acc {}'.format(best_acc))  
-                elif args.criterion == 'loss':
+                elif opt.criterion == 'loss':
                     if val_loss > best_loss:
                         logging.info('val_loss {} > best_loss {}'.format(val_loss, best_loss))
                         opt.eps = utils.adadelta_eps_decay(optimizer, opt.eps_decay)

@@ -5,7 +5,7 @@
 
 
 # general configuration
-stage=0        # start from 0 if you need to start from data preparation
+stage=3      # start from 0 if you need to start from data preparation
 gpu=            # will be deprecated, please use ngpu
 ngpu=0          # number of gpus ("0" uses cpu, otherwise use gpu)
 debugmode=1
@@ -91,9 +91,9 @@ set -e
 set -u
 set -o pipefail
 
-dataroot="/home/bliu/SRC/workspace/e2e/data/clean_aishell/"
+dataroot="/speech4_2/stt/data/cn/data_aishell"
 ##dictroot="/home/bliu/mywork/workspace/e2e/data/lang_1char/"
-dictroot="/home/bliu/SRC/workspace/e2e/data/lang_syllable/"
+dictroot="/speech/users/ysw/workspace/kaldi/egs/Robust_e2e_gan/exp/lang_syllable"
 train_set=train
 train_dev=dev
 ##recog_set="test_mix test_clean"

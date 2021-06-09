@@ -5,6 +5,7 @@ import os
 import sys
 import logging
 import time
+import shutil
 from datetime import timedelta
 
 
@@ -148,7 +149,7 @@ class ScheSampleRampup(object):
         self.final_epoch = final_epoch
         self.final_rate = final_rate
         self.linear = float(final_rate) / (final_epoch - start_epoch)
-        
+    #  start_epoch=10, final_epoch=15, final_rate=0.001  
     def reset(self):
         self.epoch = 0
 

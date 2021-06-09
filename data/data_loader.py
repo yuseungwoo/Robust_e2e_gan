@@ -29,7 +29,7 @@ class SequentialDataset(Dataset, FbankFeatLabelParser):
         
         self.feat_type = args.feat_type
         if self.feat_type.split('_')[0] == 'kaldi':
-            self.speech_scp = os.path.join(data_dir, 'feats.scp')
+            self.speech_scp = os.path.join(data_dir, 'clean_feats.scp')
             self.feat_len_scp = os.path.join(data_dir, 'kaldi_feat_len.scp')
         else:
             self.speech_scp = os.path.join(data_dir, 'wav.scp')

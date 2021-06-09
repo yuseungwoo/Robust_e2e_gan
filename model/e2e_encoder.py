@@ -164,9 +164,9 @@ class BLSTM(torch.nn.Module):
         :param ilens:
         :return:
         '''
-        logging.info(self.__class__.__name__ + ' input lengths: ' + str(ilens))
+        ##logging.info(self.__class__.__name__ + ' input lengths: ' + str(ilens))
         xpack = pack_padded_sequence(xpad, ilens, batch_first=True)
-        ys, (hy, cy) = self.nblstm(xpack)
+        ys, (hy, cy) = self.nblstm(xpack) 
         del hy, cy
         # ys: utt list of frame x cdim x 2 (2: means bidirectional)
         ypad, ilens = pad_packed_sequence(ys, batch_first=True)

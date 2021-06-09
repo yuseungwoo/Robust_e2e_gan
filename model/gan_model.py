@@ -169,4 +169,42 @@ class GANLoss(nn.Module):
     def __call__(self, input, target_is_real):
         target_tensor = self.get_target_tensor(input, target_is_real)
         return self.loss(input, target_tensor)
+    
+#https://github.com/SSARCandy/DeepCORAL/blob/master/models.py
+def CORAL(source, target):
+    d = source.data.shape[1]
 
+    # source covariance
+    xm = torch.mean(source, 0, keepdim=True) - source
+    xc = xm.t() @ xm
+
+    # target covariance
+    xmt = torch.mean(target, 0, keepdim=True) - target
+    xct = xmt.t() @ xmt
+
+    # frobenius norm between source and target
+    loss = torch.mean(torch.mul((xc - xct), (xc - xct)))
+    loss = loss/(4*d*d)
+
+    return loss
+
+#https://github.com/enjoy-the-science/deepcoral/blob/master/coral.py
+'''
+def CORAL(source, target):
+    d = source.data.shape[0]  # Batch size
+    assert source[0].shape == target[0].shape, f'src.sh is {source.shape}; tg.sh is {target.shape}!'
+    # Source covariance
+    source = source - torch.mean(source, 1, keepdim=True)
+    source_cov = torch.matmul(torch.transpose(source, -2,-1), source)
+    # Target covariance
+    target =  target - torch.mean(target, 1, keepdim=True)
+    target_cov = torch.matmul(torch.transpose(target, -2, -1), target)
+
+    if source_cov.size(0) != target_cov.size(0):
+        loss = torch.norm((source_cov[:target_cov.size(0)] - target_cov), dim=(-2,-1))
+    else:
+        loss = torch.norm((source_cov - target_cov), dim=(-2,-1))
+    loss = loss/(4*d**2)
+    loss = torch.mean(loss).unsqueeze(-1)
+    return loss
+'''

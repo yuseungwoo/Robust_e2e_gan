@@ -128,9 +128,8 @@ class EnhanceModel(ModelBase):
         :param ilens:
         :return:
         '''                               
-        mix_inputs = to_cuda(self, mix_inputs)
-        mix_log_inputs = to_cuda(self, mix_log_inputs)        
-        ilens = to_cuda(self, input_sizes)
+        
+        ilens = input_sizes
         
         if self.enhance_type == 'blstm':
             xs, hlens = self.enc1(mix_log_inputs, ilens)
@@ -155,7 +154,7 @@ class EnhanceModel(ModelBase):
         else:              
             linear_out = self.fc(xs)     
         out = torch.sigmoid(linear_out) 
-        mask = to_cuda(self, torch.ByteTensor(out.size()).fill_(0))
+        mask = torch.ByteTensor(out.size()).fill_(0)
         for i, length in enumerate(ilens):
             length = length.item()
             if (mask[i].size(0) - length) > 0:
@@ -163,9 +162,7 @@ class EnhanceModel(ModelBase):
         out = out.masked_fill(mask, 0) 
         enhance_out = out * mix_inputs 
         
-        if clean_inputs is not None:
-            clean_inputs = to_cuda(self, clean_inputs)
-            cos_angles = to_cuda(self, cos_angles)     
+        if clean_inputs is not None:   
             ##loss = F.mse_loss(enhance_out, clean_inputs * cos_angles, size_average=False) 
             loss = F.l1_loss(enhance_out, clean_inputs * cos_angles, size_average=False)            
             loss /= torch.sum(ilens).float()        

@@ -51,11 +51,9 @@ class FFTModel(ModelBase):
         :return:
         '''
         ##self.fc = torch.exp(self.fc)
-        xs = to_cuda(self, xs)        
         xs[xs <= 1e-7] = 1e-7
         out = torch.log(xs)        
         if fft_cmvn is not None:
-            fft_cmvn = to_cuda(self, fft_cmvn)
             out = (out + fft_cmvn[0, :]) * fft_cmvn[1, :]        
         return out
         
@@ -64,31 +62,32 @@ class FFTModel(ModelBase):
             print(">> compute fbank_cmvn using {} utterance ".format(self.cmvn_num))
             self.pbar = ProgressBar().start()        
         features = self.forward(inputs)               
+        
+        for x in range(input_sizes.shape[0]):
+            input_size = int(input_sizes[x]) 
+            feature_mat = features[x].data.cpu().numpy()
+            feature_mat = feature_mat[:input_size, :]           
+            sum_1utt = np.sum(feature_mat, axis=0)
+            self.sum = np.add(self.sum, sum_1utt)
+            feature_mat_square = np.square(feature_mat)
+            sum_sq_1utt = np.sum(feature_mat_square, axis=0)
+            self.sum_sq = np.add(self.sum_sq, sum_sq_1utt)
+            self.frame_count += feature_mat.shape[0]            
+            self.cmvn_processed_num += 1
+            self.pbar.update(int((self.cmvn_processed_num / (self.cmvn_num - 1)) * 100))
+            
         if self.cmvn_processed_num < self.cmvn_num:
-            for x in range(input_sizes.shape[0]):
-                input_size = int(input_sizes[x]) 
-                feature_mat = features[x].data.cpu().numpy()
-                feature_mat = feature_mat[:input_size, :]           
-                sum_1utt = np.sum(feature_mat, axis=0)
-                self.sum = np.add(self.sum, sum_1utt)
-                feature_mat_square = np.square(feature_mat)
-                sum_sq_1utt = np.sum(feature_mat_square, axis=0)
-                self.sum_sq = np.add(self.sum_sq, sum_sq_1utt)
-                self.frame_count += feature_mat.shape[0]            
-                self.cmvn_processed_num += 1
-                self.pbar.update(int((self.cmvn_processed_num / (self.cmvn_num - 1)) * 100))
             return None
         else:
             self.pbar.finish()
             mean = self.sum / self.frame_count
             var = self.sum_sq / self.frame_count - np.square(mean)
-            print (self.frame_count)
-            print (mean)
-            print (var)
+            #print (self.frame_count)
+            #print (mean)
+            #print (var)
             self.fbank_cmvn[0, :] = -mean
             self.fbank_cmvn[1, :] = 1 / np.sqrt(var)
             return self.fbank_cmvn
-            
             
 class FbankModel(FFTModel):
     def __init__(self, args):
@@ -96,7 +95,9 @@ class FbankModel(FFTModel):
         self.opt = args
         idim = args.idim 
         odim = args.fbank_dim 
+        print(odim)
         filterbanks = get_filterbanks(nfilt=odim) 
+        print(filterbanks)
         ##filterbanks[filterbanks <= 1e-3] = 1e-3
         ##log_filterbanks = np.log(filterbanks)
         if args.enhance_type == 'unet_128' or args.enhance_type == 'unet_256':
@@ -120,8 +121,7 @@ class FbankModel(FFTModel):
         :param xs:
         :return:
         '''
-        ##self.fc = torch.exp(self.fc)
-        xs = to_cuda(self, xs)        
+        ##self.fc = torch.exp(self.fc)    
         xs = (xs ** 2)
         n, t = xs.size(0), xs.size(1)
         xs = xs.view(n * t, -1)
@@ -130,6 +130,5 @@ class FbankModel(FFTModel):
         out[out <= 1e-7] = 1e-7
         out = torch.log(out)        
         if fbank_cmvn is not None:
-            fbank_cmvn = to_cuda(self, fbank_cmvn)
             out = (out + fbank_cmvn[0, :]) * fbank_cmvn[1, :]        
         return out

@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from options.train_options import TrainOptions
 from model.enhance_model import EnhanceModel
 from model.feat_model import FFTModel, FbankModel
-from model.e2e_model import ShareE2E
+from model.e2e_model import E2E
 from model.gan_model import GANModel, GANLoss, CORAL
 from model.e2e_common import set_requires_grad
 from data.mix_data_loader import MixSequentialDataset, MixSequentialDataLoader, BucketingSampler
@@ -94,7 +94,7 @@ def main():
     if opt.asr_resume:
         asr_model_path = os.path.join(opt.works_dir, opt.asr_resume)
         if os.path.isfile(asr_model_path):
-            asr_model = ShareE2E.load_model(asr_model_path, 'asr_state_dict', opt)
+            asr_model = E2E.load_model(asr_model_path, 'asr_state_dict', opt)
         else:
             print("no checkpoint found at {}".format(asr_model_path))  
                                         
@@ -117,7 +117,7 @@ def main():
     if joint_model_path is not None or enhance_model_path is None:     
         enhance_model = EnhanceModel.load_model(joint_model_path, 'enhance_state_dict', opt)    
     if joint_model_path is not None or asr_model_path is None:  
-        asr_model = ShareE2E.load_model(joint_model_path, 'asr_state_dict', opt)     
+        asr_model = E2E.load_model(joint_model_path, 'asr_state_dict', opt)     
     feat_model = FbankModel.load_model(joint_model_path, 'fbank_state_dict', opt) 
     if opt.isGAN:
         gan_model = GANModel.load_model(joint_model_path, 'gan_state_dict', opt) 
@@ -143,7 +143,8 @@ def main():
        
     # Training	
     enhance_cmvn = compute_cmvn_epoch(opt, train_loader, enhance_model, feat_model) 
-    sample_rampup = utils.ScheSampleRampup(opt.sche_samp_start_iter, opt.sche_samp_final_iter, opt.sche_samp_final_rate)  
+    #sample_rampup = utils.ScheSampleRampup(opt.sche_samp_start_iter, opt.sche_samp_final_iter, opt.sche_samp_final_rate)
+    sample_rampup = utils.ScheSampleRampup(25, 30, 0.000001)    
     sche_samp_rate = sample_rampup.update(iters)
     
     enhance_model.train()
